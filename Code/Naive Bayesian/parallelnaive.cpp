@@ -23,6 +23,8 @@ int entrycounters[attrcount];
 int classcount = 2;
 int numThreads = 32;
 string classes[2] = {"yes", "no"};
+string colnames[5] = {"age", "income", "student", "credit_rating",
+                      "buys_computer"};
 void readFileToData() {
   char temp[1024];
   strcpy(temp, filename.c_str());
@@ -179,28 +181,34 @@ string maxProbClass(double arr[]) {
 void test_entire() {
   double probs[classcount];
   int correct = 0; // Stores the number of correct classifications
-
+  int wrong_count = 0;
 #pragma omp parallel private(probs) shared(correct)
-#pragma omp for schedule(dynamic) reduction(+ : correct)
+#pragma omp for schedule(dynamic) reduction(+ : correct, wrong_count)
   for (int row = 0; row < rowcount; row++) {
     // Initialize class prob array to 1
     for (int i = 0; i < classcount; i++) {
       probs[i] = 0;
     }
-    for (int col = 0; col < attrcount; col++) {
+    for (int col = 0; col < attrcount - 1; col++) {
       for (int classind = 0; classind < classcount; classind++) {
         if (probs[classind] == 0) {
-          probs[classind] = counts[col][getComboIndex(
-              testData[row][col] + "," + classes[classind], col)];
+          probs[classind] = counts[getComboIndex(
+              testData[row][col] + "," + classes[classind], col)][col];
         } else {
           probs[classind] =
               probs[classind] *
-              counts[col][getComboIndex(
-                  testData[row][col] + "," + classes[classind], col)];
+              counts[getComboIndex(testData[row][col] + "," + classes[classind],
+                                   col)][col];
         }
+        /* if (row == 1) { */
+        /*   cout << colnames[col] << " " << testData[row][col] << " " */
+        /*        << classes[classind] << " " << probs[classind] << endl; */
+        /* } */
       }
     }
 
+    /* if (row == 1) */
+    /*   cout << probs[0] << " " << probs[1] << endl; */
     // Find the class with the highest probability
     int max_index = -1;
     double max_prob = -1;
@@ -213,10 +221,21 @@ void test_entire() {
 
     // Compare predicted class with actual class and update correct count
     if (classes[max_index] == testData[row][attrcount - 1]) {
+      /* if (row == 1) */
+      /*   cout << "Predicted class: " << classes[max_index] */
+      /*        << " Actual class: " << testData[row][attrcount - 1] << endl; */
       correct++;
+    } else {
+      /* if (wrong_count < 1) { */
+      /*   cout << "Wrong Row " << row */
+      /*        << " Predicted class: " << classes[max_index] */
+      /*        << " Actual class: " << testData[row][attrcount - 1] << endl; */
+      /* } */
+      wrong_count++;
     }
   }
-
+  cout << "Correct Count: " << correct << endl;
+  cout << "Wrong Count: " << wrong_count << endl;
   double acc = static_cast<double>(correct) / rowcount;
   cout << "Accuracy: " << (double)acc * 100 << "%" << endl;
 }
